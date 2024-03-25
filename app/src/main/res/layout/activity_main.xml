@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/background"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <dev.sajidali.guide.GuideView
+        android:id="@+id/guide_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true"
+        app:gv_ChannelBackground="#0000"
+        app:gv_ChannelHeight="30dp"
+        app:gv_ChannelWidth="150dp"
+        app:gv_EventBackground="#0000"
+        app:gv_EventLayoutCurrentBackground="?colorPrimary"
+        app:gv_EventLayoutSelectedBackground="?colorPrimaryDark"
+        app:gv_HoursToShow="2"
+        app:gv_TimebarBackColor="?colorPrimary"
+        app:gv_TimebarLineColor="#fff"
+        app:gv_TimebarLineWidth="4dp"
+        app:mainBackground="@drawable/background"
+        app:mainBackgroundTint="?colorPrimary" />
+
+</FrameLayout>

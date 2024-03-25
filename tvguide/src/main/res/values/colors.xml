@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="gv_background">#0000</color>
+    <color name="gv_channel_background">?colorPrimaryDark</color>
+    <color name="gv_event_layout_background">#ff4f4f4f</color>
+    <color name="gv_event_background_current">?colorPrimaryDark</color>
+    <color name="gv_event_background_selected">?colorAccent</color>
+    <color name="gv_event_layout_text">#ffd6d6d6</color>
+    <color name="gv_time_bar">?colorAccent</color>
+    <color name="gv_time_bar_back_color">#0000</color>
+</resources>

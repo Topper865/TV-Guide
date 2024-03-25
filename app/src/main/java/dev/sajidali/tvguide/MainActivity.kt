@@ -1,0 +1,72 @@
+package dev.sajidali.tvguide
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import dev.sajidali.demo.databinding.ActivityMainBinding
+import dev.sajidali.guide.data.Channel
+import dev.sajidali.guide.data.DataProvider
+import dev.sajidali.guide.data.Event
+import java.util.concurrent.TimeUnit
+import kotlin.random.Random
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+
+    private val provider = object : DataProvider {
+
+        val events = HashMap<Int, List<Event>>()
+        val channels = (0..300).map { position ->
+            Channel(position, "Channel $position", "").also {
+                generateEvents(position)
+            }
+        }
+
+        private fun generateEvents(channel: Int) {
+            var startTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1)
+            events[channel] = (0..50).map {
+                val endTime =
+                    Random.nextLong(startTime, startTime + TimeUnit.HOURS.toMillis(2))
+                Event(
+                    it,
+                    "Event $it",
+                    "Description of event $it",
+                    startTime,
+                    endTime
+                ).also {
+                    startTime = endTime
+                }
+            }
+        }
+
+        override fun channelAt(position: Int): Channel {
+            return channels[position]
+        }
+
+        override fun eventsOfChannel(position: Int): Collection<Event> {
+            return events[position] ?: emptyList()
+        }
+
+        override fun eventOfChannelAt(channel: Int, position: Int): Event? {
+            return events[channel]?.get(position)
+        }
+
+        override fun size(): Int {
+            return 50
+        }
+
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.guideView.apply {
+            setDataProvider(provider)
+        }
+
+    }
+
+
+}

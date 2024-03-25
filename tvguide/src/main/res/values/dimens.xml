@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="gv_channel_layout_margin">1dp</dimen>
+    <dimen name="gv_channel_layout_padding">1dp</dimen>
+    <dimen name="gv_channel_layout_height">30dp</dimen>
+    <dimen name="gv_channel_layout_width">170dp</dimen>
+    <dimen name="gv_event_layout_text">13sp</dimen>
+    <dimen name="gv_time_bar_height">20dp</dimen>
+    <dimen name="gv_time_bar_text">12sp</dimen>
+    <dimen name="gv_time_bar_line_width">2dp</dimen>
+    <dimen name="gv_reset_button_size">40dp</dimen>
+    <dimen name="gv_reset_button_margin">10dp</dimen>
+</resources>
