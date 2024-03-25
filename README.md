@@ -5,5 +5,5 @@ A simplified tv guide viewer for Android TV heavily modified from [android-tv-ep
 
 It is available as Library and it can be used in any project easily.
 ## Demo
-[Demo Video](demo.mp4)
+[](demo.gif)
 
