@@ -1,8 +1,10 @@
 package dev.sajidali.tvguide
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import dev.sajidali.demo.databinding.ActivityMainBinding
+import dev.sajidali.guide.GuideView
 import dev.sajidali.guide.data.Channel
 import dev.sajidali.guide.data.DataProvider
 import dev.sajidali.guide.data.Event
@@ -64,6 +66,52 @@ class MainActivity : AppCompatActivity() {
 
         binding.guideView.apply {
             setDataProvider(provider)
+            setEPGClickListener(object : GuideView.ClickListener {
+                override fun onChannelClicked(position: Int, channel: Channel?) {
+                    // Handle channel click
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Channel ${channel?.title} clicked",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                }
+
+                override fun onEventSelected(channel: Channel?, program: Event?) {
+                    // Handle event selection
+                    binding.txtChannel.text = channel?.title
+                    binding.txtEvent.text = program?.title
+                }
+
+                override fun onEventClicked(
+                    channelPosition: Int,
+                    programPosition: Int,
+                    channel: Channel?,
+                    program: Event?
+                ) {
+                    // Handle event click
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Event ${program?.title} clicked",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                override fun onEventLongClicked(
+                    channelPosition: Int,
+                    programPosition: Int,
+                    channel: Channel?,
+                    program: Event?
+                ) {
+                    // Handle event long click
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Event ${program?.title} long clicked",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+            })
         }
 
     }

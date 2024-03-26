@@ -1,26 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="GuideView">
-        <attr name="mainBackground" format="reference" />
         <attr name="gv_ChannelMargin" format="dimension|reference" />
         <attr name="gv_ChannelPadding" format="dimension|reference" />
         <attr name="gv_ChannelHeight" format="dimension|reference" />
         <attr name="gv_ChannelWidth" format="dimension|reference" />
-        <attr name="gv_ChannelBackground" format="color|reference" />
-        <attr name="gv_EventBackground" format="color|reference" />
+        <attr name="gv_ChannelBackground" format="reference" />
+        <attr name="gv_EventBackground" format="reference" />
         <attr name="gv_EventTextColor" format="color|reference" />
         <attr name="gv_EventTextSize" format="dimension|reference" />
         <attr name="gv_TimebarHeight" format="dimension|reference" />
         <attr name="gv_TimebarTextSize" format="dimension|reference" />
-        <attr name="gv_TimebarLineWidth" format="dimension|reference" />
-        <attr name="gv_TimebarLineColor" format="color|reference" />
+        <attr name="gv_TimeLineWidth" format="dimension|reference" />
+        <attr name="gv_TimeLineColor" format="color|reference" />
         <attr name="gv_HoursToShow" format="integer" />
         <attr name="gv_DaysBack" format="float" />
         <attr name="gv_DaysForward" format="float" />
         <attr name="gv_TimeSpacingInMinutes" format="integer" />
-        <attr name="gv_EventLayoutCurrentBackground" format="color|reference" />
-        <attr name="gv_EventLayoutSelectedBackground" format="color|reference" />
-        <attr name="gv_TimebarBackColor" format="color|reference" />
-        <attr name="mainBackgroundTint" format="color|reference" />
+        <attr name="gv_TimebarBackground" format="color|reference" />
     </declare-styleable>
 </resources>

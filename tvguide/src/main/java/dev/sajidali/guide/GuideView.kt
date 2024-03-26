@@ -1,6 +1,7 @@
 package dev.sajidali.guide
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -11,11 +12,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.Scroller
-import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.content.withStyledAttributes
-import androidx.core.graphics.drawable.DrawableCompat
-import androidx.core.graphics.drawable.toBitmap
 import dev.sajidali.guide.data.Channel
 import dev.sajidali.guide.data.DataProvider
 import dev.sajidali.guide.data.Event
@@ -48,6 +46,8 @@ class GuideView : ViewGroup {
     }
 
 
+    private var eventLayoutTextSize: Int
+    private var eventLayoutTextColor: ColorStateList?
     private var dataProvider: DataProvider? = null
     private var timeFormat: String = "HH:mm"
 
@@ -62,82 +62,26 @@ class GuideView : ViewGroup {
     private var mChannelLayoutPadding: Int
     private var mChannelLayoutHeight: Int
     private var mChannelLayoutWidth: Int
-    private var mChannelLayoutBackground: Int = Color.TRANSPARENT
-    private var mEventLayoutBackground: Int
-    private var mEventLayoutBackgroundCurrent: Int
-    var eventLayoutBackgroundSelected: Int
-    var eventLayoutTextColor: Int
-    var eventLayoutTextSize: Int
+
+    private var mChannelRowBackground: Drawable?
+
+    private var mEventBackground: Drawable?
+
     private var mTimeBarLineWidth: Int
     private var mTimeBarLineColor: Int
     private var mTimeBarHeight: Int
     private var mTimeBarTextSize: Int
-    private var mEpgTimebarBackColor: Int
+
+    private var mTimebarBackground: Drawable?
+
     private var mHoursInViewPort: Long
     private var mDaysBack: Long
     private var mDaysForward: Long
     private var mTimeSpacing: Long
 
-    private val mResetButtonSize: Int
-    private val mResetButtonMargin: Int
     private var screenWidth = 0
     private var screenHeight = 0
 
-
-    private var mainBackground: Drawable? = null
-
-    @ColorInt
-    private var backgroundTint: Int
-
-    private var channelLayoutBackground: Bitmap? = null
-        get() {
-            if (field == null) {
-                mainBackground ?: return null
-                DrawableCompat.setTint(mainBackground!!, backgroundTint)
-                val bitmap = mainBackground!!.toBitmap(screenWidth, screenHeight)
-                val location = IntArray(2)
-                getLocationOnScreen(location)
-                if (location[1] + height < screenHeight) {
-                    field = Bitmap.createBitmap(
-                        bitmap, location[0], location[1], mChannelLayoutWidth, height
-                    )
-                }
-            }
-            return field
-        }
-
-    private var channelRowBackground: Bitmap? = null
-        get() {
-            if (field == null) {
-                mainBackground ?: return null
-                DrawableCompat.setTint(mainBackground!!, backgroundTint)
-                val bitmap = mainBackground!!.toBitmap(screenWidth, screenHeight)
-                val location = IntArray(2)
-                getLocationOnScreen(location)
-                field = Bitmap.createBitmap(
-                    bitmap,
-                    location[0],
-                    location[1],
-                    bitmap.width - location[0],
-                    mChannelLayoutHeight
-                )
-            }
-            return field
-        }
-
-    private var timebarBackground: Bitmap? = null
-        get() {
-            if (field == null) {
-                DrawableCompat.setTint(mainBackground!!, backgroundTint)
-                val bitmap = mainBackground!!.toBitmap(screenWidth, screenHeight)
-                val location = IntArray(2)
-                getLocationOnScreen(location)
-                field = Bitmap.createBitmap(
-                    bitmap, location[0], location[1], bitmap.width - location[0], mTimeBarHeight
-                )
-            }
-            return field
-        }
 
     private var mClickListener: ClickListener? = null
     private var mMaxHorizontalScroll: Int = 0
@@ -160,21 +104,21 @@ class GuideView : ViewGroup {
 //        }
     }
 
-    private var selectedEvent: Int = -1
-    private var selectedChannel = 0
+    private var selectedEventPos: Int = -1
+    private var selectedChannelPos = 0
 
     private val currentChannel: Channel?
         get() {
             return dataProvider?.let { provider ->
-                if (selectedChannel in 0 until provider.size()) {
-                    provider.channelAt(selectedChannel)
+                if (selectedChannelPos in 0 until provider.size()) {
+                    provider.channelAt(selectedChannelPos)
                 } else null
             }
 
         }
 
-    private val currentEvent: Event?
-        get() = dataProvider?.eventOfChannelAt(selectedChannel, selectedEvent)
+    private val selectedEvent: Event?
+        get() = dataProvider?.eventOfChannelAt(selectedChannelPos, selectedEventPos)
 
     private var isEventHandled: Boolean = false
     private var waitForLongClick: Boolean = false
@@ -188,10 +132,10 @@ class GuideView : ViewGroup {
 
     private val firstVisibleChannelPosition: Int
         get() {
-            val y = scrollY
+            val y = scrollY + mTimeBarHeight
 
             var position =
-                (y - mChannelLayoutMargin - mTimeBarHeight) / (mChannelLayoutHeight + mChannelLayoutMargin)
+                (y - mChannelLayoutMargin) / (mChannelLayoutHeight + mChannelLayoutMargin)
 
             if (position < 0) {
                 position = 0
@@ -230,30 +174,29 @@ class GuideView : ViewGroup {
         // Adding some friction that makes the epg less flappy.
         mScroller = Scroller(context)
         mScroller.setFriction(0.2f)
-        mainBackground = ColorDrawable(ContextCompat.getColor(context, R.color.gv_background))
         mChannelLayoutMargin = resources.getDimensionPixelSize(R.dimen.gv_channel_layout_margin)
         mChannelLayoutPadding = resources.getDimensionPixelSize(R.dimen.gv_channel_layout_padding)
         mChannelLayoutHeight = resources.getDimensionPixelSize(R.dimen.gv_channel_layout_height)
         mChannelLayoutWidth = resources.getDimensionPixelSize(R.dimen.gv_channel_layout_width)
-        mChannelLayoutBackground = context.getThemedAttribute(android.R.attr.colorPrimaryDark)
-        mEventLayoutBackground = Color.TRANSPARENT
-        mEventLayoutBackgroundCurrent = context.getThemedAttribute(android.R.attr.colorPrimaryDark)
-        eventLayoutBackgroundSelected = context.getThemedAttribute(android.R.attr.colorPrimaryDark)
-        eventLayoutTextColor = Color.parseColor("#ffd6d6d6")
+        mChannelRowBackground =
+            ContextCompat.getDrawable(context, R.drawable.channel_row_background)
+        mEventBackground = ContextCompat.getDrawable(context, R.drawable.event_background)
+        eventLayoutTextColor = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()), intArrayOf(
+                context.getThemedAttribute(android.R.attr.colorAccent),
+                context.getThemedAttribute(android.R.attr.textColorPrimary)
+            )
+        )
         eventLayoutTextSize = resources.getDimensionPixelSize(R.dimen.gv_event_layout_text)
         mTimeBarHeight = resources.getDimensionPixelSize(R.dimen.gv_time_bar_height)
         mTimeBarTextSize = resources.getDimensionPixelSize(R.dimen.gv_time_bar_text)
         mTimeBarLineWidth = resources.getDimensionPixelSize(R.dimen.gv_time_bar_line_width)
         mTimeBarLineColor = context.getThemedAttribute(android.R.attr.colorAccent)
-        mEpgTimebarBackColor = Color.BLUE
-        mResetButtonSize = resources.getDimensionPixelSize(R.dimen.gv_reset_button_size)
-        mResetButtonMargin = resources.getDimensionPixelSize(R.dimen.gv_reset_button_margin)
-        mEpgTimebarBackColor = Color.TRANSPARENT
+        mTimebarBackground = ColorDrawable(Color.TRANSPARENT)
         mHoursInViewPort = TimeUnit.HOURS.toMillis(1) + TimeUnit.MINUTES.toMillis(30)
         mDaysBack = TimeUnit.MINUTES.toMillis(30)
         mDaysForward = TimeUnit.DAYS.toMillis(1)
         mTimeSpacing = TimeUnit.MINUTES.toMillis(30)
-        backgroundTint = context.getThemedAttribute(android.R.attr.colorPrimary)
         screenDimenInitialization()
 
     }
@@ -269,10 +212,6 @@ class GuideView : ViewGroup {
 
     private fun init(attrs: AttributeSet? = null, defStyleAttr: Int = 0, defStyleRes: Int = 0) {
         context.withStyledAttributes(attrs, R.styleable.GuideView, defStyleAttr, defStyleRes) {
-            mainBackground = getColorOrDrawable(
-                R.styleable.GuideView_mainBackground,
-                ContextCompat.getColor(context, R.color.gv_background)
-            )
             mChannelLayoutMargin = getDimensionPixelSize(
                 R.styleable.GuideView_gv_ChannelMargin,
                 resources.getDimensionPixelSize(R.dimen.gv_channel_layout_margin)
@@ -290,19 +229,12 @@ class GuideView : ViewGroup {
                 R.styleable.GuideView_gv_ChannelWidth,
                 resources.getDimensionPixelSize(R.dimen.gv_channel_layout_width)
             )
-            mChannelLayoutBackground =
-                getColor(R.styleable.GuideView_gv_ChannelBackground, mChannelLayoutBackground)
-            mEventLayoutBackground =
-                getColor(R.styleable.GuideView_gv_EventBackground, mEventLayoutBackground)
-            mEventLayoutBackgroundCurrent = getColor(
-                R.styleable.GuideView_gv_EventLayoutCurrentBackground, mEventLayoutBackgroundCurrent
-            )
-            eventLayoutBackgroundSelected = getColor(
-                R.styleable.GuideView_gv_EventLayoutSelectedBackground,
-                eventLayoutBackgroundSelected
-            )
+            mChannelRowBackground =
+                getDrawable(R.styleable.GuideView_gv_ChannelBackground) ?: mChannelRowBackground
+            mEventBackground =
+                getDrawable(R.styleable.GuideView_gv_EventBackground) ?: mEventBackground
             eventLayoutTextColor =
-                getColor(R.styleable.GuideView_gv_EventTextColor, eventLayoutTextColor)
+                getColorStateList(R.styleable.GuideView_gv_EventTextColor) ?: eventLayoutTextColor
             eventLayoutTextSize = getDimensionPixelSize(
                 R.styleable.GuideView_gv_EventTextSize,
                 resources.getDimensionPixelSize(R.dimen.gv_event_layout_text)
@@ -316,13 +248,13 @@ class GuideView : ViewGroup {
                 resources.getDimensionPixelSize(R.dimen.gv_time_bar_text)
             )
             mTimeBarLineWidth = getDimensionPixelSize(
-                R.styleable.GuideView_gv_TimebarLineWidth,
+                R.styleable.GuideView_gv_TimeLineWidth,
                 resources.getDimensionPixelSize(R.dimen.gv_time_bar_line_width)
             )
-            mTimeBarLineColor =
-                getColor(R.styleable.GuideView_gv_TimebarLineColor, mTimeBarLineColor)
-            mEpgTimebarBackColor =
-                getColor(R.styleable.GuideView_gv_TimebarBackColor, mEpgTimebarBackColor)
+            mTimeBarLineColor = getColor(R.styleable.GuideView_gv_TimeLineColor, mTimeBarLineColor)
+            mTimebarBackground =
+                getColorOrDrawable(R.styleable.GuideView_gv_TimebarBackground, Color.TRANSPARENT)
+                    ?: mTimebarBackground
             mHoursInViewPort =
                 TimeUnit.HOURS.toMillis(getInt(R.styleable.GuideView_gv_HoursToShow, 2).toLong())
             mTimeSpacing = TimeUnit.MINUTES.toMillis(
@@ -330,7 +262,6 @@ class GuideView : ViewGroup {
                     R.styleable.GuideView_gv_TimeSpacingInMinutes, 30
                 ).toLong()
             )
-            backgroundTint = getColor(R.styleable.GuideView_mainBackgroundTint, backgroundTint)
         }
 
         screenDimenInitialization()
@@ -343,7 +274,7 @@ class GuideView : ViewGroup {
     public override fun onSaveInstanceState(): Parcelable {
         val superState = super.onSaveInstanceState()
         val epgState = EPGState(superState!!)
-        epgState.currentEvent = this.selectedEvent
+        epgState.currentEvent = this.selectedEventPos
         return epgState
     }
 
@@ -353,7 +284,7 @@ class GuideView : ViewGroup {
             return
         }
         super.onRestoreInstanceState(state.superState)
-        this.selectedEvent = state.currentEvent
+        this.selectedEventPos = state.currentEvent
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -382,10 +313,7 @@ class GuideView : ViewGroup {
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        timebarBackground = null
-        channelLayoutBackground = null
-        channelRowBackground = null
-        recalculateAndRedraw(this.selectedEvent, false)
+        recalculateAndRedraw(this.selectedEventPos, false)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -407,15 +335,11 @@ class GuideView : ViewGroup {
         drawingRect.right = drawingRect.left + width
         drawingRect.bottom = drawingRect.top + mTimeBarHeight
 
-        mPaint.style = Paint.Style.FILL
-//        mPaint.color = mEpgTimebarBackColor
-//        canvas.drawRect(drawingRect, mPaint)
-
-        if (timebarBackground != null) {
-            canvas.drawBitmap(
-                timebarBackground!!, drawingRect.left.toFloat(), drawingRect.top.toFloat(), mPaint
-            )
+        mTimebarBackground?.let {
+            it.bounds = drawingRect
+            it.draw(canvas)
         }
+
 
         drawingRect.left = scrollX + mChannelLayoutWidth + mChannelLayoutMargin
         drawingRect.top = scrollY
@@ -434,7 +358,7 @@ class GuideView : ViewGroup {
         drawStrokedRectangle(canvas, drawingRect)
 
         // Time stamps
-        mPaint.color = eventLayoutTextColor
+        mPaint.color = eventLayoutTextColor?.defaultColor ?: Color.WHITE
         mPaint.textSize = mTimeBarTextSize.toFloat()
 
         for (i in 0 until mHoursInViewPort / mTimeSpacing) {
@@ -475,7 +399,7 @@ class GuideView : ViewGroup {
         drawStrokedRectangle(canvas, drawingRect)
 
         // Text
-        mPaint.color = eventLayoutTextColor
+        mPaint.color = eventLayoutTextColor?.defaultColor ?: Color.WHITE
         mPaint.textSize = mTimeBarTextSize.toFloat()
         mPaint.textAlign = Paint.Align.CENTER
         canvas.drawText(
@@ -531,18 +455,6 @@ class GuideView : ViewGroup {
                     }
                 }
             }
-//            if (epgEvents != null && epgEvents.size > 0) {
-//                for (index in 0 until epgEvents.size) {
-//                    val event = epgEvents.getOrNull(index) ?: continue
-//                    if (isEventVisible(event.startTimestamp, event.stopTimestamp)) {
-//                        drawEvent(canvas, channelPos, index, drawingRect)
-//                        foundFirst = true
-//                    } else if (foundFirst) {
-//                        break
-//                    }
-//                }
-//            }
-
             canvas.restore()
         }
 
@@ -555,16 +467,31 @@ class GuideView : ViewGroup {
         setEventDrawingRectangle(
             channelPosition, event.start, event.end, drawingRect
         )
-        // Background
-        if (channelPosition == selectedChannel && selectedEvent != -1 && eventPosition == selectedEvent) {
-            mPaint.color = eventLayoutBackgroundSelected
-        } else {
-            mPaint.color = Color.TRANSPARENT
-        }
         if (drawingRect.left < scrollX + channelAreaWidth) {
             drawingRect.left = scrollX + channelAreaWidth
         }
-        canvas.drawRect(drawingRect, mPaint)
+
+        // Background
+        if (channelPosition == selectedChannelPos && selectedEventPos != -1 && eventPosition == selectedEventPos) {
+            mEventBackground?.let {
+                it.state = intArrayOf(android.R.attr.state_focused)
+                it.bounds = drawingRect
+                it.draw(canvas)
+            }
+        } else if (event.isCurrent) {
+            mEventBackground?.let {
+                it.state = intArrayOf(android.R.attr.state_selected)
+                it.bounds = drawingRect
+                it.draw(canvas)
+            }
+        } else {
+            mEventBackground?.let {
+                it.state = intArrayOf()
+                it.bounds = drawingRect
+                it.draw(canvas)
+            }
+        }
+
 //        mPaint.style = Paint.Style.STROKE
 //        mPaint.strokeWidth = 0.3f
         mPaint.color = Color.LTGRAY
@@ -592,11 +519,22 @@ class GuideView : ViewGroup {
         drawingRect.right -= mChannelLayoutPadding
 
         // Text
-        mPaint.color = eventLayoutTextColor
+        mPaint.color =
+            if (channelPosition == selectedChannelPos && selectedEventPos != -1 && eventPosition == selectedEventPos) {
+                eventLayoutTextColor?.getColorForState(
+                    intArrayOf(android.R.attr.state_focused), eventLayoutTextColor!!.defaultColor
+                ) ?: Color.WHITE
+            } else if (event.isCurrent) {
+                eventLayoutTextColor?.getColorForState(
+                    intArrayOf(android.R.attr.state_selected), eventLayoutTextColor!!.defaultColor
+                ) ?: Color.WHITE
+            } else {
+                eventLayoutTextColor?.defaultColor ?: Color.WHITE
+            }
         mPaint.textSize = eventLayoutTextSize.toFloat()
 
         // Move drawing.top so text will be centered (text is drawn bottom>up)
-        mPaint.getTextBounds(event.title, 0, event.title?.length ?: 0, mMeasuringRect)
+        mPaint.getTextBounds(event.title, 0, event.title.length, mMeasuringRect)
         drawingRect.top += (drawingRect.bottom - drawingRect.top) / 2 + mMeasuringRect.height() / 2
 
         var title = event.title
@@ -605,6 +543,17 @@ class GuideView : ViewGroup {
         )
         canvas.drawText(title, drawingRect.left.toFloat(), drawingRect.top.toFloat(), mPaint)
 
+    }
+
+    private fun isEventCurrent(event: Event?): Boolean {
+        event ?: return false
+        val now = System.currentTimeMillis()
+        return event.start <= now && event.end >= now
+    }
+
+    private fun isEventCurrent(eventPosition: Int): Boolean {
+        val event = selectedEvent ?: return false
+        return isEventCurrent(event)
     }
 
     private fun setEventDrawingRectangle(
@@ -622,15 +571,6 @@ class GuideView : ViewGroup {
         mMeasuringRect.top = scrollY
         mMeasuringRect.right = drawingRect.left + mChannelLayoutWidth
         mMeasuringRect.bottom = mMeasuringRect.top + height
-
-        if (channelLayoutBackground != null) {
-            canvas.drawBitmap(
-                channelLayoutBackground!!,
-                mMeasuringRect.left.toFloat(),
-                mMeasuringRect.top.toFloat(),
-                mPaint
-            )
-        }
 
 //        mPaint.color = Color.LTGRAY
 //        mPaint.strokeWidth = 1f
@@ -654,23 +594,22 @@ class GuideView : ViewGroup {
         drawingRect.right = drawingRect.left + programAreaWidth + mChannelLayoutWidth
         drawingRect.bottom = drawingRect.top + mChannelLayoutHeight
 
-        if (selectedChannel == position && channelRowBackground != null) {
-            mPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            mPaint.colorFilter = LightingColorFilter(0xFFFFFF, 0x00222222)
-            canvas.drawBitmap(
-                channelRowBackground!!,
-                drawingRect.left.toFloat(),
-                drawingRect.top.toFloat(),
-                mPaint
-            )
-            mPaint.xfermode = null
-            mPaint.colorFilter = null
+        if (selectedChannelPos == position) {
+            mChannelRowBackground?.let {
+                it.state = intArrayOf(android.R.attr.state_focused)
+                it.bounds = drawingRect
+                it.draw(canvas)
+            }
+        } else {
+            mChannelRowBackground?.let {
+                it.state = intArrayOf()
+                it.bounds = drawingRect
+                it.draw(canvas)
+            }
         }
 
         drawingRect.left = scrollX
-        drawingRect.top = getTopFrom(position)
         drawingRect.right = drawingRect.left + mChannelLayoutWidth
-        drawingRect.bottom = drawingRect.top + mChannelLayoutHeight
 
         mPaint.color = Color.LTGRAY
         mPaint.style = Paint.Style.FILL
@@ -686,7 +625,13 @@ class GuideView : ViewGroup {
         drawingRect.left += 16
 
         //Draw Channel Name
-        mPaint.color = eventLayoutTextColor
+        mPaint.color = if (selectedChannelPos == position) {
+            eventLayoutTextColor?.getColorForState(
+                intArrayOf(android.R.attr.state_focused), eventLayoutTextColor!!.defaultColor
+            ) ?: Color.WHITE
+        } else {
+            eventLayoutTextColor?.defaultColor ?: Color.WHITE
+        }
         mPaint.textSize = eventLayoutTextSize.toFloat()
 
         var title = dataProvider?.channelAt(position)?.title ?: ""
@@ -707,60 +652,6 @@ class GuideView : ViewGroup {
         mPaint.style = Paint.Style.STROKE
         canvas.drawRect(drawingRect, mPaint)
         mPaint.style = Paint.Style.FILL
-    }
-
-    private fun getDrawingRectForChannelImage(drawingRect: Rect, image: Bitmap): Rect {
-        drawingRect.left += mChannelLayoutPadding
-        drawingRect.top += mChannelLayoutPadding
-        drawingRect.right -= mChannelLayoutPadding
-        drawingRect.bottom -= mChannelLayoutPadding
-
-        val imageWidth = image.width
-        val imageHeight = image.height
-        val imageRatio = imageHeight / imageWidth.toFloat()
-
-        val rectWidth = drawingRect.right - drawingRect.left
-        val rectHeight = drawingRect.bottom - drawingRect.top
-
-        // Keep aspect ratio.
-        if (imageWidth > imageHeight) {
-            val padding = (rectHeight - rectWidth * imageRatio).toInt() / 2
-            drawingRect.top += padding
-            drawingRect.bottom -= padding
-        } else if (imageWidth <= imageHeight) {
-            val padding = (rectWidth - rectHeight / imageRatio).toInt() / 2
-            drawingRect.left += padding
-            drawingRect.right -= padding
-        }
-
-        return drawingRect
-    }
-
-    private fun getDrawingRectForChannelName(drawingRect: Rect, image: Bitmap): Rect {
-        drawingRect.left += mChannelLayoutPadding
-        drawingRect.top += mChannelLayoutPadding
-        drawingRect.right -= mChannelLayoutPadding
-        drawingRect.bottom -= mChannelLayoutPadding
-
-        val imageWidth = image.width
-        val imageHeight = image.height
-        val imageRatio = imageHeight / imageWidth.toFloat()
-
-        val rectWidth = drawingRect.right - drawingRect.left
-        val rectHeight = drawingRect.bottom - drawingRect.top
-
-        // Keep aspect ratio.
-        if (imageWidth > imageHeight) {
-            val padding = (rectHeight - rectWidth * imageRatio).toInt() / 2
-            drawingRect.top += padding
-            drawingRect.bottom -= padding
-        } else if (imageWidth <= imageHeight) {
-            val padding = (rectWidth - rectHeight / imageRatio).toInt() / 2
-            drawingRect.left += padding
-            drawingRect.right -= padding
-        }
-
-        return drawingRect
     }
 
     private fun shouldDrawTimeLine(now: Long): Boolean {
@@ -794,7 +685,7 @@ class GuideView : ViewGroup {
     }
 
     private fun getTopFrom(position: Int): Int {
-        return (position * (mChannelLayoutHeight + mChannelLayoutMargin) + mChannelLayoutMargin + mTimeBarHeight)
+        return (position * (mChannelLayoutHeight + mChannelLayoutMargin) + mTimeBarHeight)
     }
 
     private fun getTimeFrom(x: Int): Long {
@@ -890,7 +781,7 @@ class GuideView : ViewGroup {
         val maxYVisible = minYVisible + height
 
         val currentChannelTop =
-            mTimeBarHeight + selectedChannel * (mChannelLayoutHeight + mChannelLayoutMargin)
+            mTimeBarHeight + selectedChannelPos * (mChannelLayoutHeight + mChannelLayoutMargin)
         val currentChannelBottom = currentChannelTop + mChannelLayoutHeight
 
         if (currentChannelTop < minYVisible) {
@@ -944,8 +835,8 @@ class GuideView : ViewGroup {
     }
 
     fun updateSelection(channel: Int, selectedEvent: Int = -1) {
-        selectedChannel = channel
-        this.selectedEvent = selectedEvent
+        selectedChannelPos = channel
+        this.selectedEventPos = selectedEvent
         recalculateAndRedraw(selectedEvent, withAnimation = false)
     }
 
@@ -973,7 +864,7 @@ class GuideView : ViewGroup {
 
             //Select initial event
             if (selectedEvent2 == -1) {
-                selectedEvent2 = this.selectedEvent
+                selectedEvent2 = this.selectedEventPos
             }
             if (selectedEvent2 != -1) {
                 selectEvent(selectedEvent2, withAnimation)
@@ -1000,7 +891,7 @@ class GuideView : ViewGroup {
     }
 
     fun selectEvent(epgEvent: Int, withAnimation: Boolean) {
-        this.selectedEvent = epgEvent
+        this.selectedEventPos = epgEvent
         optimizeVisibility()
         notifyListener()
         //redraw to get the coloring of the selected event
@@ -1008,18 +899,12 @@ class GuideView : ViewGroup {
     }
 
     fun selectCurrentEvent() {
-        dataProvider?.eventsOfChannel(selectedChannel)
+        dataProvider?.eventsOfChannel(selectedChannelPos)
             ?.indexOfFirst { it.start <= now && it.end >= now }?.let { selectEvent(it, false) }
-//        if (pagingDataDiffer.itemCount == 0) return
-//        val channel = pagingDataDiffer.getItem(selectedChannel)
-//        val program =
-//            channel?.programs?.firstOrNull { it.startTimestamp <= now && it.stopTimestamp >= now }
-//        val position = channel?.programs?.indexOf(program) ?: -1
-//        selectEvent(position, false)
     }
 
     fun notifyListener() {
-        mClickListener?.onEventSelected(currentChannel, currentEvent)
+        mClickListener?.onEventSelected(currentChannel, selectedEvent)
     }
 
     var justGotFocus = false
@@ -1032,18 +917,6 @@ class GuideView : ViewGroup {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-//        if (event.action == KeyEvent.ACTION_DOWN) {
-//            if (event.isLongPress) isLongPressed = true
-//            return handleNavigationEvent(event) || handleClickEvent(event)
-//        } else if (event.action == KeyEvent.ACTION_UP && !isLongPressed) {
-//            logd("called action up")
-//            return if (isLongPressed) {
-//                isLongPressed = false
-//                true
-//            } else {
-//                handleClickEvent(event)
-//            }
-//        }
         if (handleNavigationEvent(event) || handleClickEvent(event)) {
             return true
         }
@@ -1055,7 +928,7 @@ class GuideView : ViewGroup {
         mTimeUpperBoundary = getTimeFrom(scrollX + width)
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER) {
             mClickListener?.onEventLongClicked(
-                selectedChannel, 0, currentChannel, this.currentEvent
+                selectedChannelPos, 0, currentChannel, this.selectedEvent
             )
         }
         //notifyListener()
@@ -1072,7 +945,7 @@ class GuideView : ViewGroup {
         mTimeUpperBoundary = getTimeFrom(scrollX + programAreaWidth)
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if ((currentEvent?.end ?: 0) > mTimeUpperBoundary) {
+                if ((selectedEvent?.end ?: 0) > mTimeUpperBoundary) {
                     moveMinutesForward(30)
                 } else {
                     showNextEvent()
@@ -1082,11 +955,11 @@ class GuideView : ViewGroup {
 
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 rv = when {
-                    !isBackMoveable() -> if ((currentEvent?.start
+                    !isBackMoveable() -> if ((selectedEvent?.start
                             ?: 0) > mTimeLowerBoundary
                     ) showPreviousEvent() else false
 
-                    (currentEvent?.start?.plus(TimeUnit.MINUTES.toMillis(30))
+                    (selectedEvent?.start?.plus(TimeUnit.MINUTES.toMillis(30))
                         ?: 0) < mTimeLowerBoundary -> {
                         moveMinutesBack(30)
                         true
@@ -1120,14 +993,14 @@ class GuideView : ViewGroup {
                     isLongPressed = false
                 } else {
                     mClickListener?.onChannelClicked(
-                        selectedChannel, currentChannel
+                        selectedChannelPos, currentChannel
                     )
                 }
             } else {
                 if (event.isLongPress) {
                     isLongPressed = true
                     mClickListener?.onEventLongClicked(
-                        selectedChannel, 0, currentChannel, this.currentEvent
+                        selectedChannelPos, 0, currentChannel, this.selectedEvent
                     )
                 }
             }
@@ -1143,44 +1016,44 @@ class GuideView : ViewGroup {
     }
 
     fun nextChannel(shouldCallListener: Boolean = false) {
-        val pair = findEventBelow(selectedChannel)
+        val pair = findEventBelow(selectedChannelPos)
         pair.run {
-            selectedChannel = first
-            selectedEvent = second
+            selectedChannelPos = first
+            selectedEventPos = second
             optimizeVisibility()
             if (shouldCallListener) {
                 mClickListener?.onChannelClicked(
-                    selectedChannel, currentChannel
+                    selectedChannelPos, currentChannel
                 )
             }
         }
     }
 
     fun prevChannel(shouldCallListener: Boolean = false) {
-        val pair = findEventAbove(selectedChannel)
+        val pair = findEventAbove(selectedChannelPos)
         pair.run {
-            selectedChannel = first
-            selectedEvent = second
+            selectedChannelPos = first
+            selectedEventPos = second
             optimizeVisibility()
             if (shouldCallListener) {
                 mClickListener?.onChannelClicked(
-                    selectedChannel, currentChannel
+                    selectedChannelPos, currentChannel
                 )
             }
         }
     }
 
     private fun findNextEvent(): Int {
-        val programs = dataProvider?.eventsOfChannel(selectedChannel) ?: return -1
-        val nextPos = selectedEvent + 1
+        val programs = dataProvider?.eventsOfChannel(selectedChannelPos) ?: return -1
+        val nextPos = selectedEventPos + 1
         if (nextPos >= programs.size) {
-            return selectedEvent
+            return selectedEventPos
         }
         return nextPos
     }
 
     private fun findPreviousEvent(): Int {
-        val prevPos = selectedEvent - 1
+        val prevPos = selectedEventPos - 1
         if (prevPos < 0) {
             return -1
         }
@@ -1189,8 +1062,8 @@ class GuideView : ViewGroup {
 
     private fun findEventAbove(channel: Int): Pair<Int, Int> {
         val previous = channel - 1
-        if (previous < 0) return Pair(selectedChannel, selectedEvent)
-        val current = this.currentEvent ?: return Pair(selectedChannel, selectedEvent)
+        if (previous < 0) return Pair(selectedChannelPos, selectedEventPos)
+        val current = this.selectedEvent ?: return Pair(selectedChannelPos, selectedEventPos)
         val lowerBoundary = max(mTimeLowerBoundary, current.start)
         val upperBoundary = min(mTimeUpperBoundary, current.end)
         val eventMiddleTime = (lowerBoundary + upperBoundary) / 2
@@ -1204,8 +1077,8 @@ class GuideView : ViewGroup {
 
     private fun findEventBelow(channel: Int): Pair<Int, Int> {
         val next = channel + 1
-        if (next >= dataProvider.itemCount) return Pair(selectedChannel, selectedEvent)
-        val current = this.currentEvent ?: return Pair(selectedChannel, selectedEvent)
+        if (next >= dataProvider.itemCount) return Pair(selectedChannelPos, selectedEventPos)
+        val current = this.selectedEvent ?: return Pair(selectedChannelPos, selectedEventPos)
         val lowerBoundary = max(mTimeLowerBoundary, current.start)
         val upperBoundary = min(mTimeUpperBoundary, current.end)
         val eventMiddleTime = (lowerBoundary + upperBoundary) / 2
@@ -1222,10 +1095,10 @@ class GuideView : ViewGroup {
         mTimeUpperBoundary = getTimeFrom(scrollX + programAreaWidth)
         val nextEvent = findNextEvent()
         if (nextEvent != -1) {
-            this.selectedEvent = nextEvent
+            this.selectedEventPos = nextEvent
             var dX: Int
             var dT: Long
-            val currentStart = currentEvent?.start ?: 0
+            val currentStart = selectedEvent?.start ?: 0
             dT = currentStart - mTimeLowerBoundary
 
             dX = round(dT / mMillisPerPixel.toFloat()).toInt()
@@ -1244,10 +1117,10 @@ class GuideView : ViewGroup {
         mTimeUpperBoundary = getTimeFrom(scrollX + programAreaWidth)
         val prevEvent = findPreviousEvent()
         return if (prevEvent != -1) {
-            this.selectedEvent = prevEvent
+            this.selectedEventPos = prevEvent
             var dX: Int
             var dT: Long
-            val currentStart = currentEvent?.start ?: 0
+            val currentStart = selectedEvent?.start ?: 0
             dT = currentStart - mTimeLowerBoundary
             if (dT < 0 && abs(dT) > TimeUnit.MINUTES.toMillis(30)) {
                 dT = -TimeUnit.MINUTES.toMillis(30)
@@ -1302,7 +1175,7 @@ class GuideView : ViewGroup {
             val minYVisible =
                 scrollY // is 0 when scrolled completely to top (first channel fully visible)
             val currentChannelTop =
-                mTimeBarHeight + selectedChannel * (mChannelLayoutHeight + mChannelLayoutMargin)
+                mTimeBarHeight + selectedChannelPos * (mChannelLayoutHeight + mChannelLayoutMargin)
             val bottomPos = minYVisible + height - mChannelLayoutHeight
             dY = currentChannelTop - minYVisible - mTimeBarHeight
             if (isTouched) {
@@ -1367,21 +1240,21 @@ class GuideView : ViewGroup {
 //            requestFocus()
             val channelPosition = getChannelPosition(scrollY)
             if (channelPosition != -1 && mClickListener != null) {
-                selectedChannel = channelPosition
+                selectedChannelPos = channelPosition
                 if (calculateChannelsHitArea().contains(x, y)) {
                     // Channel area is clicked
                     mClickListener!!.onChannelClicked(
                         channelPosition, currentChannel
                     )
                     val lowerBoundary = max(
-                        mTimeLowerBoundary, currentEvent?.start ?: now
+                        mTimeLowerBoundary, selectedEvent?.start ?: now
                     )
                     val upperBoundary = Math.min(
-                        mTimeUpperBoundary, currentEvent?.end ?: now
+                        mTimeUpperBoundary, selectedEvent?.end ?: now
                     )
                     val eventMiddleTime = (lowerBoundary + upperBoundary) / 2
-                    selectedEvent = getProgramPosition(selectedChannel, eventMiddleTime)
-                    if (selectedEvent == -1) {
+                    selectedEventPos = getProgramPosition(selectedChannelPos, eventMiddleTime)
+                    if (selectedEventPos == -1) {
                         gotoNow()
                     } else {
                         optimizeVisibility(isTouched = true)
@@ -1394,8 +1267,8 @@ class GuideView : ViewGroup {
                         getTimeFrom(getScrollX() + x - calculateProgramsHitArea().left)
                     )
                     if (programPosition != -1) {
-                        selectedEvent = programPosition
-                        if (selectedEvent == -1) {
+                        selectedEventPos = programPosition
+                        if (selectedEventPos == -1) {
                             gotoNow()
                         } else {
                             optimizeVisibility(isTouched = true)
@@ -1405,7 +1278,7 @@ class GuideView : ViewGroup {
                             channelPosition,
                             programPosition,
                             currentChannel,
-                            dataProvider?.eventOfChannelAt(selectedChannel, programPosition)
+                            dataProvider?.eventOfChannelAt(selectedChannelPos, programPosition)
                         )
                     }
                 }
@@ -1426,21 +1299,21 @@ class GuideView : ViewGroup {
 
             val channelPosition = getChannelPosition(scrollY)
             if (channelPosition != -1 && mClickListener != null) {
-                selectedChannel = channelPosition
+                selectedChannelPos = channelPosition
                 if (calculateChannelsHitArea().contains(x, y)) {
                     // Channel area is clicked
                     mClickListener!!.onChannelClicked(
                         channelPosition, currentChannel
                     )
                     val lowerBoundary = max(
-                        mTimeLowerBoundary, currentEvent?.start ?: 0
+                        mTimeLowerBoundary, selectedEvent?.start ?: 0
                     )
                     val upperBoundary = min(
-                        mTimeUpperBoundary, currentEvent?.end ?: 0
+                        mTimeUpperBoundary, selectedEvent?.end ?: 0
                     )
                     val eventMiddleTime = (lowerBoundary + upperBoundary) / 2
-                    selectedEvent = getProgramPosition(selectedChannel, eventMiddleTime)
-                    if (selectedEvent == -1) {
+                    selectedEventPos = getProgramPosition(selectedChannelPos, eventMiddleTime)
+                    if (selectedEventPos == -1) {
                         gotoNow()
                     } else {
                         optimizeVisibility(isTouched = true)
@@ -1453,11 +1326,11 @@ class GuideView : ViewGroup {
                         getTimeFrom(getScrollX() + x - calculateProgramsHitArea().left)
                     )
                     if (programPosition != -1) {
-                        selectedEvent = programPosition
-                        if (selectedEvent != -1) {
+                        selectedEventPos = programPosition
+                        if (selectedEventPos != -1) {
                             optimizeVisibility(isTouched = true)
                             mClickListener?.onEventLongClicked(
-                                selectedChannel, programPosition, currentChannel, currentEvent
+                                selectedChannelPos, programPosition, currentChannel, selectedEvent
                             )
                         }
                         notifyListener()
