@@ -7,9 +7,9 @@ It is available as Library and it can be used in any project easily.
 
 ## Demo Screenshot
 
-[](demo.png)
+![Screenshot](demo.png)
 
 ## Demo Video
-[](demo.mp4)
+![Video](demo.mp4)
 
 
