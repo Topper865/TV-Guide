@@ -44,12 +44,11 @@ android {
 
 dependencies {
 
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.media)
+    implementation(libs.appcompat)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    implementation(libs.androidx.core.ktx.v190)
+    androidTestImplementation(libs.junit.ext)
+    androidTestImplementation(libs.espresso.core)
+    implementation(libs.core.ktx)
     implementation(libs.joda.time)
 
 }

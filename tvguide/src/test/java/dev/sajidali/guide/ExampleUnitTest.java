@@ -1,4 +1,4 @@
-package com.pakdevslab.epg;
+package dev.sajidali.guide;
 
 import org.junit.Test;
 

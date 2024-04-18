@@ -269,6 +269,9 @@ class GuideView : ViewGroup {
 
     fun setDataProvider(provider: DataProvider) {
         this.dataProvider = provider
+        dataProvider?.onDataUpdated {
+            recalculateAndRedraw(this.selectedEventPos, false)
+        }
     }
 
     public override fun onSaveInstanceState(): Parcelable {

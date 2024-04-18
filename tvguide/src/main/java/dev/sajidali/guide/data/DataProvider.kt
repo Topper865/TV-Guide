@@ -2,7 +2,8 @@ package dev.sajidali.guide.data
 
 interface DataProvider {
 
-    fun channelAt(position: Int): Channel
+    fun onDataUpdated(block: () -> Unit)
+    fun channelAt(position: Int): Channel?
 
     fun eventsOfChannel(position: Int): Collection<Event>
 
