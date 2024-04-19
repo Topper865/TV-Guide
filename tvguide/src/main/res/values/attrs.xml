@@ -6,6 +6,7 @@
         <attr name="gv_ChannelHeight" format="dimension|reference" />
         <attr name="gv_ChannelWidth" format="dimension|reference" />
         <attr name="gv_ChannelBackground" format="reference" />
+        <attr name="gv_SelectedRowScale" format="float" />
         <attr name="gv_EventBackground" format="reference" />
         <attr name="gv_EventTextColor" format="color|reference" />
         <attr name="gv_EventTextSize" format="dimension|reference" />

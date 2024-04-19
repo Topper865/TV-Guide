@@ -62,6 +62,7 @@ class GuideView : ViewGroup {
     private var mChannelLayoutPadding: Int
     private var mChannelLayoutHeight: Int
     private var mChannelLayoutWidth: Int
+    private var mSelectedRowScale: Float = 1f
 
     private var mChannelRowBackground: Drawable?
 
@@ -201,6 +202,10 @@ class GuideView : ViewGroup {
 
     }
 
+    private fun channelHeight(isSelected: Boolean): Int {
+        return if (isSelected) (mChannelLayoutHeight * mSelectedRowScale).toInt() else mChannelLayoutHeight
+    }
+
     private fun screenDimenInitialization() {
         screenWidth = resources.displayMetrics.widthPixels
         screenHeight = resources.displayMetrics.heightPixels
@@ -224,6 +229,9 @@ class GuideView : ViewGroup {
                 R.styleable.GuideView_gv_ChannelHeight,
                 resources.getDimensionPixelSize(R.dimen.gv_channel_layout_height)
             )
+
+            mSelectedRowScale =
+                getFloat(R.styleable.GuideView_gv_SelectedRowScale, mSelectedRowScale)
 
             mChannelLayoutWidth = getDimensionPixelSize(
                 R.styleable.GuideView_gv_ChannelWidth,
@@ -357,8 +365,8 @@ class GuideView : ViewGroup {
         canvas.save()
         canvas.clipRect(mClipRect)
 
-        // Background
-        drawStrokedRectangle(canvas, drawingRect)
+//        // Background
+//        drawStrokedRectangle(canvas, drawingRect)
 
         // Time stamps
         mPaint.color = eventLayoutTextColor?.defaultColor ?: Color.WHITE
@@ -399,7 +407,7 @@ class GuideView : ViewGroup {
 //        canvas.drawRect(drawingRect, mPaint)
 
         // Background
-        drawStrokedRectangle(canvas, drawingRect)
+//        drawStrokedRectangle(canvas, drawingRect)
 
         // Text
         mPaint.color = eventLayoutTextColor?.defaultColor ?: Color.WHITE
@@ -439,7 +447,7 @@ class GuideView : ViewGroup {
             mClipRect.left = scrollX + mChannelLayoutWidth + mChannelLayoutMargin
             mClipRect.top = getTopFrom(channelPos)
             mClipRect.right = scrollX + width
-            mClipRect.bottom = mClipRect.top + mChannelLayoutHeight
+            mClipRect.bottom = mClipRect.top + channelHeight(selectedChannelPos == channelPos)
 
             canvas.save()
             canvas.clipRect(mClipRect)
@@ -501,22 +509,6 @@ class GuideView : ViewGroup {
 //        canvas.drawRect(drawingRect, mPaint)
         mPaint.style = Paint.Style.FILL
 
-        canvas.drawLine(
-            drawingRect.left.toFloat(),
-            drawingRect.top.toFloat(),
-            drawingRect.left.toFloat(),
-            drawingRect.bottom.toFloat(),
-            mPaint
-        )
-
-        canvas.drawLine(
-            drawingRect.left.toFloat(),
-            drawingRect.bottom.toFloat(),
-            drawingRect.right.toFloat(),
-            drawingRect.bottom.toFloat(),
-            mPaint
-        )
-
         // Add left and right inner padding
         drawingRect.left += mChannelLayoutPadding + 16
         drawingRect.right -= mChannelLayoutPadding
@@ -534,7 +526,8 @@ class GuideView : ViewGroup {
             } else {
                 eventLayoutTextColor?.defaultColor ?: Color.WHITE
             }
-        mPaint.textSize = eventLayoutTextSize.toFloat()
+        mPaint.textSize =
+            eventLayoutTextSize * if (channelPosition == selectedChannelPos) mSelectedRowScale else 1f
 
         // Move drawing.top so text will be centered (text is drawn bottom>up)
         mPaint.getTextBounds(event.title, 0, event.title.length, mMeasuringRect)
@@ -565,7 +558,7 @@ class GuideView : ViewGroup {
         drawingRect.left = getXFrom(start)
         drawingRect.top = getTopFrom(channelPosition)
         drawingRect.right = getXFrom(end) - mChannelLayoutMargin
-        drawingRect.bottom = drawingRect.top + mChannelLayoutHeight
+        drawingRect.bottom = drawingRect.top + channelHeight(selectedChannelPos == channelPosition)
     }
 
     private fun drawChannelListItems(canvas: Canvas, drawingRect: Rect) {
@@ -595,7 +588,7 @@ class GuideView : ViewGroup {
         drawingRect.left = scrollX
         drawingRect.top = getTopFrom(position)
         drawingRect.right = drawingRect.left + programAreaWidth + mChannelLayoutWidth
-        drawingRect.bottom = drawingRect.top + mChannelLayoutHeight
+        drawingRect.bottom = drawingRect.top + channelHeight(selectedChannelPos == position)
 
         if (selectedChannelPos == position) {
             mChannelRowBackground?.let {
@@ -614,17 +607,6 @@ class GuideView : ViewGroup {
         drawingRect.left = scrollX
         drawingRect.right = drawingRect.left + mChannelLayoutWidth
 
-        mPaint.color = Color.LTGRAY
-        mPaint.style = Paint.Style.FILL
-
-        canvas.drawLine(
-            drawingRect.left.toFloat(),
-            drawingRect.bottom.toFloat(),
-            drawingRect.right.toFloat(),
-            drawingRect.bottom.toFloat(),
-            mPaint
-        )
-
         drawingRect.left += 16
 
         //Draw Channel Name
@@ -635,7 +617,8 @@ class GuideView : ViewGroup {
         } else {
             eventLayoutTextColor?.defaultColor ?: Color.WHITE
         }
-        mPaint.textSize = eventLayoutTextSize.toFloat()
+        mPaint.textSize =
+            eventLayoutTextSize * if (position == selectedChannelPos) mSelectedRowScale else 1f
 
         var title = dataProvider?.channelAt(position)?.title ?: ""
 
@@ -679,7 +662,8 @@ class GuideView : ViewGroup {
     }
 
     private fun calculateMaxVerticalScroll() {
-        val maxVerticalScroll = getTopFrom((dataProvider?.size() ?: 0) - 1) + mChannelLayoutHeight
+        val maxVerticalScroll =
+            getTopFrom((dataProvider?.size() ?: 0) - 2) + mChannelLayoutHeight + channelHeight(true)
         mMaxVerticalScroll = if (maxVerticalScroll < height) 0 else maxVerticalScroll - height
     }
 
@@ -688,7 +672,13 @@ class GuideView : ViewGroup {
     }
 
     private fun getTopFrom(position: Int): Int {
-        return (position * (mChannelLayoutHeight + mChannelLayoutMargin) + mTimeBarHeight)
+        return if (position <= selectedChannelPos)
+            (position * (mChannelLayoutHeight + mChannelLayoutMargin) + mTimeBarHeight)
+        else {
+            ((position - 1) * (mChannelLayoutHeight + mChannelLayoutMargin) + mTimeBarHeight + channelHeight(
+                true
+            ))
+        }
     }
 
     private fun getTimeFrom(x: Int): Long {
@@ -1111,7 +1101,7 @@ class GuideView : ViewGroup {
             if (scrollX + dX > mMaxHorizontalScroll) {
                 dX = mMaxHorizontalScroll - scrollX
             }
-            mScroller.startScroll(scrollX, scrollY, dX, 0, 400)
+            mScroller.startScroll(scrollX, scrollY, dX, 0, 600)
         }
     }
 
@@ -1135,7 +1125,7 @@ class GuideView : ViewGroup {
             if (scrollX + dX > mMaxHorizontalScroll) {
                 dX = mMaxHorizontalScroll - scrollX
             }
-            mScroller.startScroll(scrollX, scrollY, dX, 0, 400)
+            mScroller.startScroll(scrollX, scrollY, dX, 0, 600)
             true
         } else false
     }
@@ -1178,9 +1168,9 @@ class GuideView : ViewGroup {
             val minYVisible =
                 scrollY // is 0 when scrolled completely to top (first channel fully visible)
             val currentChannelTop =
-                mTimeBarHeight + selectedChannelPos * (mChannelLayoutHeight + mChannelLayoutMargin)
+                selectedChannelPos * (mChannelLayoutHeight + mChannelLayoutMargin)
             val bottomPos = minYVisible + height - mChannelLayoutHeight
-            dY = currentChannelTop - minYVisible - mTimeBarHeight
+            dY = currentChannelTop - minYVisible
             if (isTouched) {
                 dY = 0
                 if (currentChannelTop > bottomPos) dY =
@@ -1191,7 +1181,7 @@ class GuideView : ViewGroup {
         }
 
         if (dX != 0 || dY != 0) {
-            mScroller.startScroll(scrollX, scrollY, dX, dY, 400)
+            mScroller.startScroll(scrollX, scrollY, dX, dY, 200)
         }
 
     }
