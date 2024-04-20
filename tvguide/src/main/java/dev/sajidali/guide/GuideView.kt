@@ -965,13 +965,11 @@ class GuideView : ViewGroup {
             }
 
             KeyEvent.KEYCODE_DPAD_UP -> {
-                prevChannel()
-                rv = true
+                rv = prevChannel()
             }
 
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                nextChannel()
-                rv = true
+                rv = nextChannel()
             }
         }
         notifyListener()
@@ -1008,9 +1006,13 @@ class GuideView : ViewGroup {
         return scrollX - dX > 0
     }
 
-    fun nextChannel(shouldCallListener: Boolean = false) {
-        val pair = findEventBelow(selectedChannelPos)
-        pair.run {
+    fun nextChannel(shouldCallListener: Boolean = false): Boolean {
+        val current = Pair(selectedChannelPos, selectedEventPos)
+        val new = findEventBelow(selectedChannelPos)
+        if (current.first == new.first && current.second == new.second) {
+            return false
+        }
+        new.run {
             selectedChannelPos = first
             selectedEventPos = second
             optimizeVisibility()
@@ -1020,11 +1022,16 @@ class GuideView : ViewGroup {
                 )
             }
         }
+        return true
     }
 
-    fun prevChannel(shouldCallListener: Boolean = false) {
-        val pair = findEventAbove(selectedChannelPos)
-        pair.run {
+    fun prevChannel(shouldCallListener: Boolean = false): Boolean {
+        val current = Pair(selectedChannelPos, selectedEventPos)
+        val new = findEventAbove(selectedChannelPos)
+        if (current.first == new.first && current.second == new.second) {
+            return false
+        }
+        new.run {
             selectedChannelPos = first
             selectedEventPos = second
             optimizeVisibility()
@@ -1034,6 +1041,7 @@ class GuideView : ViewGroup {
                 )
             }
         }
+        return true
     }
 
     private fun findNextEvent(): Int {
